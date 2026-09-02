@@ -56,7 +56,7 @@ class TicketBot(commands.Bot):
             "cogs.admin",
             "cogs.tier_test",
             "cogs.access",
-            "cogs.comp",
+            'cogs.server_events',
         ]
 
         for cog in cogs:
@@ -85,7 +85,7 @@ class TicketBot(commands.Bot):
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.watching,
-                name="🎫 Tier Testing "
+                name="Galaxy"
             ),
             status=discord.Status.online
         )
