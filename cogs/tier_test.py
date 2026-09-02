@@ -476,6 +476,85 @@ async def record_tier_result(bot, guild_id: int, tester_id: int, player_id: int 
         )
         await db.commit()
 
+    # Tier test is now "finished" — DM the player their result + post it to
+    # whatever server log channel is configured (same channels set from
+    # /tieradminpanel, resolved per-edition with legacy fallback). Both are
+    # best-effort: a closed DM or a missing/deleted channel never raises,
+    # it's just skipped and noted in the bot's own logs.
+    await _notify_tier_result(bot, guild_id, tester_id, player_id, edition, gamemode, result, ticket_id)
+
+
+async def _notify_tier_result(bot, guild_id: int, tester_id: int, player_id: int | None,
+                               edition: str | None, gamemode: str | None, result: str | None,
+                               ticket_id: int | None):
+    guild = bot.get_guild(guild_id)
+    if guild is None:
+        return
+
+    tester = guild.get_member(tester_id)
+    tester_mention = tester.mention if tester else f'<@{tester_id}>'
+    player_mention = f'<@{player_id}>' if player_id else 'Unknown player'
+
+    # ── DM to the player whose tier was tested ────────────────────────────
+    if player_id:
+        player = guild.get_member(player_id)
+        if player and not player.bot:
+            dm_embed = discord.Embed(
+                title='🧪 Your Tier Test is Complete!',
+                description=(
+                    f"Your **{edition or 'N/A'}** tier test for **{gamemode or 'N/A'}** "
+                    f"has been finished in **{guild.name}**.\n\n"
+                    f"**Result:** {result or 'N/A'}\n"
+                    f"**Tested by:** {tester_mention}"
+                ),
+                color=PURPLE,
+                timestamp=datetime.now(timezone.utc)
+            )
+            if guild.icon:
+                dm_embed.set_thumbnail(url=guild.icon.url)
+            dm_embed.set_footer(text=f'Ticket #{ticket_id}' if ticket_id else guild.name)
+            try:
+                await player.send(embed=dm_embed)
+            except discord.Forbidden:
+                logger.info(
+                    f'[tier_test] Could not DM player {player_id} their result — DMs closed/blocked.')
+            except discord.HTTPException:
+                logger.warning(f'[tier_test] Failed sending result DM to player {player_id}.')
+
+    # ── Post to the configured server log channel (edition-specific "log"
+    #     channel if set, otherwise falls back to the legacy shared one) ────
+    tier_settings = await get_tier_settings(bot, guild_id)
+    log_channel_id = (
+        resolve_tier_channel_id(tier_settings, edition, 'log')
+        if edition else tier_settings.get('log_channel_id')
+    )
+    if not log_channel_id:
+        return
+    log_channel = guild.get_channel(log_channel_id)
+    if not log_channel:
+        return
+
+    log_embed = discord.Embed(
+        title='📋 Tier Test Result Logged',
+        description=(
+            f'**Player:** {player_mention}\n'
+            f'**Edition:** {edition or "N/A"}\n'
+            f'**Gamemode:** {gamemode or "N/A"}\n'
+            f'**Result:** {result or "N/A"}\n'
+            f'**Tested by:** {tester_mention}'
+        ),
+        color=PURPLE_DARK,
+        timestamp=datetime.now(timezone.utc)
+    )
+    if ticket_id:
+        log_embed.set_footer(text=f'Ticket #{ticket_id}')
+    try:
+        await log_channel.send(embed=log_embed)
+    except discord.Forbidden:
+        logger.warning(f'[tier_test] No permission to post result log in channel {log_channel_id}.')
+    except discord.HTTPException:
+        logger.warning(f'[tier_test] Failed to post result log in channel {log_channel_id}.')
+
 
 async def get_tier_leaderboard(bot, guild_id: int, edition: str | None = None, limit: int = 10) -> list[tuple[int, int]]:
     """Returns [(tester_id, tests_count), ...] sorted highest first."""
