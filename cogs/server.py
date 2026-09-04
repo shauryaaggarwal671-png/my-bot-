@@ -17,7 +17,7 @@ from cogs.access import require_admin_or_owner
 logger = logging.getLogger('TicketBot.server')
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  server.py — ONE cog, "sab kuch" server-utility toolkit:
+#  server.py — ONE cog, EVERYTHING server-utility toolkit:
 #    • Welcome / Leave messages
 #    • Announcements
 #    • Tournaments / Events (with a Join/RSVP button + live participant count)
@@ -1545,7 +1545,7 @@ class ServerEvents(commands.Cog):
         await update_setting(self.bot, interaction.guild_id, 'announcement_ping_role_id', role.id if role else None)
         await interaction.response.send_message(embed=E.success(f'Default ping role set to {role.mention}.' if role else 'Default ping role cleared.'), ephemeral=True)
 
-    @app_commands.command(name='seteventlog', description='(Admin/Owner only) Set the log channel for a copy of every announcement/tournament/event/giveaway/poll.')
+    @app_commands.command(name='seteventlog', description='(Admin/Owner only) Log channel for announcements/tournaments/events/giveaways/polls.')
     @app_commands.describe(channel='Log channel (leave empty to disable logging)')
     async def seteventlog(self, interaction: discord.Interaction, channel: discord.TextChannel | None = None):
         if not await require_admin_or_owner(self.bot, interaction):
@@ -2212,7 +2212,7 @@ class ServerEvents(commands.Cog):
         await update_setting(self.bot, interaction.guild_id, 'leveling_enabled', 1 if state == 'on' else 0)
         await interaction.response.send_message(embed=E.success(f'Leveling system turned **{state.upper()}**.'), ephemeral=True)
 
-    @app_commands.command(name='setlevelchannel', description='(Admin/Owner only) Set where level-up announcements are sent (defaults to wherever the message was sent).')
+    @app_commands.command(name='setlevelchannel', description='(Admin/Owner only) Set the level-up announcement channel (default: same channel).')
     @app_commands.describe(channel='Level-up announcement channel (leave empty to announce in the same channel as the message)')
     async def setlevelchannel(self, interaction: discord.Interaction, channel: discord.TextChannel | None = None):
         if not await require_admin_or_owner(self.bot, interaction):
